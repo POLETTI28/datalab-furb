@@ -1,0 +1,255 @@
+---
+title: "Jornal Econômico - Edição Especial"
+format: 
+  html:
+    theme: flatly
+include-in-header: |
+  <style>
+    /* Fundo com textura de jornal impresso */
+    body {
+      background: #fdfdfd url('https://www.transparenttextures.com/patterns/newspaper.png') repeat;
+      font-family: "Times New Roman", serif;
+      margin: 0 auto;
+      max-width: 900px;
+      padding: 20px;
+      line-height: 1.6;
+      color: #000;
+    }
+    header.journal-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px 0;
+      border-bottom: 3px double #000;
+    }
+    header.journal-header h1 {
+      font-size: 4em;
+      margin: 0;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+    }
+    header.journal-header h2 {
+      font-size: 1.5em;
+      margin: 0;
+      font-style: italic;
+      color: #555;
+      margin-top: 10px;
+    }
+    .article {
+      margin: 40px 0;
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .article .graphic {
+      flex: 1;
+      min-width: 300px;
+      margin-right: 20px;
+      text-align: center;
+    }
+    .article .panel {
+      flex: 1;
+      min-width: 300px;
+    }
+    .article .panel h3 {
+      font-size: 1.8em;
+      margin-top: 0;
+    }
+    .article .panel p {
+      font-size: 1.2em;
+    }
+    .newspaper-footer {
+      text-align: center;
+      font-size: 0.9em;
+      margin-top: 50px;
+      padding-top: 20px;
+      border-top: 1px solid #ccc;
+      color: #555;
+    }
+  </style>
+execute:
+  echo: false
+  warning: false
+  message: false
+---
+
+```{r, include=FALSE}
+# Carregar pacotes e definir variáveis globais
+library(tidyverse)
+library(ggthemes)
+library(WDI)
+
+paises <- c("BR", "AR", "US")
+
+```
+
+**Série temporal - Taxa de Crescimento do PIB (2000-2023)**
+
+```{r}
+# Carregar dados de crescimento do PIB
+dados_growth <- WDI(country = paises, 
+                    indicator = "NY.GDP.MKTP.KD.ZG", 
+                    start = 2000, 
+                    end = 2023) %>% 
+  rename(GDP_growth = NY.GDP.MKTP.KD.ZG) %>% 
+  na.omit() %>% 
+  mutate(iso2c = factor(iso2c, levels = paises))
+
+# Criar o gráfico de linha
+gdp_growth_plot <- ggplot(dados_growth, 
+                          aes(x = year, y = GDP_growth, color = iso2c)) +
+  geom_line(linewidth = 1.2) +
+  geom_point(size = 2) +
+  labs(
+    title = "Taxa de Crescimento do PIB (2000-2023)",
+    subtitle = "Brasil, Argentina e EUA",
+    x = "Ano",
+    y = "Crescimento do PIB (%)",
+    color = "País",
+    caption = "Fonte: Banco Mundial - WDI"
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    plot.title = element_text(face = "bold", size = 18, color = "white"),
+    plot.subtitle = element_text(size = 14, color = "white"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white"),
+    panel.grid.major = element_line(color = "gray50"),
+    panel.grid.minor = element_blank()
+  )
+
+# Exibir o gráfico
+gdp_growth_plot
+
+```
+
+**Série Temporal:**
+
+Referência dos Dados:
+
+-   Fonte: World Development Indicators (WDI) do Banco Mundial
+
+-   Indicador: `NY.GDP.MKTP.KD.ZG`
+    Este indicador mede a taxa de crescimento anual do Produto Interno Bruto (PIB) em termos percentuais.
+
+-   Período: 2000 a 2023
+
+Interpretação do Gráfico:
+
+-   Evolução Econômica: O gráfico apresenta uma linha para cada país, evidenciando as variações nas taxas de crescimento do PIB.
+
+-   Picos e Vales:
+
+    -   Picos indicam períodos de rápido crescimento, geralmente associados à recuperação pós-crise ou políticas econômicas expansionistas.
+
+    -   Quedas podem revelar momentos de crescimento reduzido ou retração, relacionados a recessões ou choques externos.
+
+-   Comparação entre Países:
+
+    -   A comparação das linhas dos países permite observar as diferenças estruturais em suas economias.
+
+    -   Um país com crescimento consistente pode indicar maior estabilidade econômica em comparação àqueles com oscilações maiores.
+
+Essa visualização é fundamental para analistas, investidores e formuladores de políticas, pois permite identificar tendências de longo prazo e correlacionar eventos históricos com o desempenho econômico de cada país.
+
+# **Corte Transversal – Exportações e Importações (2023)**
+
+```{r}
+# Baixar os dados de exportações e importações para 2023
+dados_exp_imp <- WDI(
+  indicator = c("NE.EXP.GNFS.ZS", "NE.IMP.GNFS.ZS"),
+  country = paises,
+  start = 2023,
+  end = 2023
+)
+
+if(nrow(dados_exp_imp) == 0){
+  stop("Os dados do Banco Mundial não estão disponíveis para o ano de 2023.")
+}
+
+dados_exp_imp <- dados_exp_imp %>%
+  rename(
+    Exportacoes = NE.EXP.GNFS.ZS, 
+    Importacoes = NE.IMP.GNFS.ZS
+  ) %>%
+  na.omit()
+
+# Transformar os dados para o formato longo
+dados_long <- dados_exp_imp %>%
+  pivot_longer(
+    cols = c(Exportacoes, Importacoes),
+    names_to = "Tipo",
+    values_to = "Valor"
+  ) %>%
+  mutate(PaisTipo = factor(paste(iso2c, Tipo, sep = "."),
+                           levels = unique(paste(iso2c, Tipo, sep = "."))))
+
+# Criar o gráfico de pontos
+scatter_plot <- ggplot(dados_long, 
+                       aes(x = iso2c, y = Valor, color = PaisTipo)) +
+  geom_point(position = position_dodge(width = 0.3), size = 5, alpha = 0.8) +
+  scale_y_continuous(limits = c(0, 100), labels = scales::percent_format(scale = 1)) +
+  scale_color_manual(values = c(
+    "BR.Exportacoes" = "green",
+    "BR.Importacoes" = "yellow",
+    "AR.Exportacoes" = "blue",
+    "AR.Importacoes" = "orange",
+    "US.Exportacoes" = "purple",
+    "US.Importacoes" = "red"
+  )) +
+  labs(
+    title = "Exportações e Importações - Brasil, Argentina e EUA (2023)",
+    subtitle = "Porcentagem do PIB",
+    x = "País",
+    y = "Valor (% do PIB)",
+    color = "Indicador",
+    caption = "Fonte: Banco Mundial - WDI"
+  ) +
+  theme_minimal(base_family = "serif") +
+  theme(
+    plot.background = element_rect(fill = "black"),
+    panel.background = element_rect(fill = "black"),
+    plot.title = element_text(face = "bold", size = 18, color = "white"),
+    plot.subtitle = element_text(size = 14, color = "white"),
+    axis.text = element_text(color = "white"),
+    axis.title = element_text(color = "white"),
+    legend.text = element_text(color = "white"),
+    legend.title = element_text(color = "white"),
+    panel.grid.major = element_line(color = "gray50"),
+    panel.grid.minor = element_blank()
+  )
+
+# Exibir o gráfico
+scatter_plot
+
+```
+
+**Corte Transversal:**
+
+Referência dos Dados:
+
+-   Fonte: World Development Indicators (WDI) do Banco Mundial
+
+-   Indicadores:
+
+    -   `NE.EXP.GNFS.ZS`: Exportações de bens e serviços como porcentagem do PIB
+
+    -   `NE.IMP.GNFS.ZS`: Importações de bens e serviços como porcentagem do PIB
+
+-   Ano: 2023
+
+Interpretação do Gráfico:
+
+-   Comparação Instantânea: O gráfico mostra os valores de exportações e importações para cada país em 2023, expressos como porcentagem do PIB.
+
+-   Indicadores de Competitividade e Dependência:
+
+    -   Exportações indicam a capacidade do país de produzir e vender bens e serviços no mercado internacional.
+
+    -   Importações revelam o grau de dependência de insumos e produtos estrangeiros.
+
+-   Interpretação Relativa: Ao expressar os dados como porcentagem do PIB, é possível identificar a relevância do comércio exterior para cada economia, destacando a exposição a variações no comércio global.
+
+Essa análise é valiosa para investidores, economistas e gestores de políticas públicas, pois evidencia como o comércio exterior impacta a saúde econômica e a competitividade dos países.
