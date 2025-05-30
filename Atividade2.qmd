@@ -1,0 +1,133 @@
+---
+title: "Fernando poletti"
+format: 
+  html:
+    theme: darkly
+editor: visual
+---
+
+## Inadimplência de Pessoas Jurídicas - Santa Catarina
+
+**Descrição:**
+
+Este gráfico apresenta a evolução temporal da **inadimplência de pessoas jurídicas** em Santa Catarina, abrangendo o período de 2004 até o ano mais recente disponível. O indicador mede a proporção ou índice de inadimplência entre empresas da região, indicando níveis de atraso no pagamento de suas obrigações financeiras.
+
+```{r}
+#| label: load-packages
+#| include: false
+
+# Lista de pacotes necessários
+pacotes_necessarios <- c("tidyverse", "plotly", "GetBCBData", "lubridate")
+
+# Instalar pacotes que não estão instalados
+pacotes_para_instalar <- pacotes_necessarios[!(pacotes_necessarios %in% installed.packages()[, "Package"])]
+if(length(pacotes_para_instalar)) {
+  install.packages(pacotes_para_instalar)
+}
+
+# Carregar pacotes
+lapply(pacotes_necessarios, library, character.only = TRUE)
+
+
+```
+
+```{r}
+#| label: load-data
+#| include: false
+
+options(scipen = 999)
+
+# Buscar dados da série para Inadimplência PJ - Santa Catarina
+# *** ATENÇÃO: o ID abaixo é um exemplo, você precisa confirmar o código correto da série para inadimplência PJ no BCB ***
+id_inadimplencia_pj_sc <- 12345  
+
+dados_inadimplencia_pj <- gbcbd_get_series(
+  id = id_inadimplencia_pj_sc,
+  first.date = "2004-01-01",
+  last.date = Sys.Date()
+)
+
+# Renomear coluna de data se necessário
+if("ref.date" %in% colnames(dados_inadimplencia_pj)) {
+  dados_inadimplencia_pj <- dados_inadimplencia_pj %>% rename(date = ref.date)
+}
+
+dados_inadimplencia_pj <- dados_inadimplencia_pj %>%
+  mutate(
+    date = as.Date(date),
+    Ano = lubridate::year(date),
+    Mes = lubridate::month(date, label = TRUE, abbr = TRUE),
+    Frame = paste0(Ano, "-", sprintf("%02d", lubridate::month(date)))
+  ) %>%
+  arrange(date)
+
+anos <- range(dados_inadimplencia_pj$Ano)
+
+dados_anim <- do.call(rbind, lapply(unique(dados_inadimplencia_pj$Ano), function(y) {
+  dados_inadimplencia_pj %>%
+    filter(Ano <= y) %>%
+    mutate(Frame = y)
+}))
+```
+
+```{r}
+#| label: grafico1-animado
+#| warning: false
+#| echo: false
+#| message: false
+
+grafico_animado <- plot_ly(
+  data = dados_anim,
+  x = ~date,
+  y = ~value,
+  type = 'scatter',
+  mode = 'lines+markers',
+  color = I("darkred"),
+  marker = list(color = 'orange', size = 8),
+  frame = ~Frame
+) %>%
+  layout(
+    title = "Inadimplência PJ - Santa Catarina",
+    xaxis = list(
+      title = "Ano",
+      range = c(min(dados_inadimplencia_pj$date), max(dados_inadimplencia_pj$date)),
+      tickformat = "%Y",
+      dtick = "M12",
+      tickmode = "linear"
+    ),
+    yaxis = list(
+      title = "Índice de inadimplência",
+      range = c(min(dados_inadimplencia_pj$value)*0.95, max(dados_inadimplencia_pj$value)*1.05)
+    )
+  ) %>%
+  animation_opts(
+    frame = 1500,
+    transition = 0,
+    redraw = FALSE
+  ) %>%
+  animation_slider(
+    currentvalue = list(prefix = "Ano: "),
+    steps = unique(dados_anim$Frame)
+  ) %>%
+  animation_button(
+    x = 1, xanchor = "right",
+    y = 0, yanchor = "bottom"
+  )
+
+grafico_animado
+
+```
+
+**O que o gráfico revela:**
+
+O gráfico mostra a evolução da inadimplência de empresas em Santa Catarina, permitindo observar tendências de aumento ou redução na capacidade de pagamento das pessoas jurídicas na região. Oscilações podem estar associadas a fatores econômicos regionais e nacionais, crises financeiras, políticas de crédito, entre outros.
+
+**Relevância econômica e social:**
+
+A inadimplência PJ é um indicador fundamental para avaliar o risco de crédito, a saúde financeira das empresas e a estabilidade econômica regional. Altos níveis de inadimplência podem indicar dificuldades econômicas e afetar a geração de empregos e investimentos.
+
+**Fonte dos dados:**
+
+-   Dados fornecidos pelo **Banco Central do Brasil**, através do **Sistema Gerenciador de Séries Temporais (SGS)**, com informações oficiais e atualizadas sobre indicadores econômicos do país.
+
+### 
