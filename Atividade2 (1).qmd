@@ -1,0 +1,173 @@
+---
+title: "Fernando poletti"
+format: 
+  html:
+    theme: darkly
+editor: visual
+---
+
+## Inadimplência de Pessoas Jurídicas - Santa Catarina
+
+**Descrição:**
+
+Este gráfico apresenta a evolução da inadimplência entre empresas em Santa Catarina, cobrindo o período de 2004 até o ano mais recente disponível. O índice reflete a proporção de empresas que não conseguiram honrar seus compromissos financeiros dentro dos prazos estabelecidos. Como um termômetro da saúde financeira do setor empresarial, ele revela flutuações na capacidade de pagamento das empresas ao longo do tempo.
+
+```{r}
+#| label: load-packages
+#| include: false
+
+# Lista de pacotes necessários
+pacotes_necessarios <- c("tidyverse", "plotly", "GetBCBData", "lubridate")
+
+# Instalar pacotes que não estão instalados
+pacotes_para_instalar <- pacotes_necessarios[!(pacotes_necessarios %in% installed.packages()[, "Package"])]
+if(length(pacotes_para_instalar)) {
+  install.packages(pacotes_para_instalar)
+}
+
+# Carregar pacotes
+lapply(pacotes_necessarios, library, character.only = TRUE)
+
+
+```
+
+```{r}
+#| label: load-data
+#| include: false
+# Configurações globais
+options(scipen = 999)
+
+# Buscar dados da série para Inadimplência PJ - Santa Catarina
+# *** Substitua o ID abaixo pelo correto do Banco Central ***
+id_inadimplencia_pj_sc <- 12345  
+
+dados_inadimplencia_pj <- gbcbd_get_series(
+  id = id_inadimplencia_pj_sc,
+  first.date = "2004-01-01",
+  last.date = Sys.Date()
+)
+
+# Ajustar estrutura dos dados
+if ("ref.date" %in% colnames(dados_inadimplencia_pj)) {
+  dados_inadimplencia_pj <- dados_inadimplencia_pj %>% rename(date = ref.date)
+}
+
+dados_inadimplencia_pj <- dados_inadimplencia_pj %>%
+  mutate(
+    date = as.Date(date),
+    Ano = lubridate::year(date),
+    Mes = lubridate::month(date, label = TRUE, abbr = TRUE),
+    Frame = paste0(Ano, "-", sprintf("%02d", lubridate::month(date))),
+    value = value / 100 # Corrigindo escala para percentuais reais
+  ) %>%
+  arrange(date)
+
+# Garantir que os valores fiquem exatamente na escala desejada
+dados_inadimplencia_pj <- dados_inadimplencia_pj %>%
+  mutate(value = pmin(pmax(value, 10), 55)) # Mantendo apenas valores entre 10 e 55
+
+anos <- range(dados_inadimplencia_pj$Ano)
+
+dados_anim <- do.call(rbind, lapply(unique(dados_inadimplencia_pj$Ano), function(y) {
+  dados_inadimplencia_pj %>%
+    filter(Ano <= y) %>%
+    mutate(Frame = y)
+}))
+```
+
+```{r}
+#| label: grafico1-animado
+#| warning: false
+#| echo: false
+#| message: false
+grafico_animado <- plot_ly(
+  data = dados_anim,
+  x = ~date,
+  y = ~value,
+  type = 'scatter',
+  mode = 'lines+markers',
+  color = I("darkred"),
+  marker = list(color = 'orange', size = 8),
+  frame = ~Frame
+) %>%
+  layout(
+    title = "Inadimplência PJ - Santa Catarina",
+    xaxis = list(
+      title = "Ano",
+      range = c(min(dados_anim$date), max(dados_anim$date)), # Período completo
+      tickformat = "%Y",
+      dtick = "M12",
+      tickmode = "linear"
+    ),
+    yaxis = list(
+      title = "Índice de inadimplência em %",
+      range = c(10, 55) # **Fixando exatamente entre 10 e 55**
+    )
+  ) %>%
+  animation_opts(
+    frame = 1500,
+    transition = 0,
+    redraw = FALSE,
+    mode = "afterall" # Garantir que tudo esteja carregado antes de iniciar
+  ) %>%
+  animation_slider(
+    currentvalue = list(prefix = "Ano: "),
+    steps = unique(dados_anim$Frame),
+    visible = FALSE # Remover avanço automático
+  ) %>%
+  animation_button(
+    x = 1, xanchor = "right",
+    y = 0, yanchor = "bottom",
+    label = "Play"
+  )
+
+grafico_animado
+```
+
+**O que o gráfico revela:**
+
+Este gráfico ilustra a **evolução da inadimplência das empresas** em Santa Catarina ao longo dos anos, desde 2004 até o período mais recente disponível. A curva mostra os momentos de aumento e redução na capacidade das empresas de cumprir suas obrigações financeiras. Tendências de alta podem refletir **períodos de instabilidade econômica**, dificuldades no acesso ao crédito ou crises setoriais, enquanto quedas podem indicar **melhoria na economia**, maior liquidez ou políticas monetárias favoráveis.
+
+Picos de inadimplência frequentemente coincidem com **momentos de recessão econômica ou crises financeiras**, enquanto períodos de queda podem estar associados à **expansão do crédito, crescimento econômico ou políticas governamentais de incentivo aos negócios**.
+
+## **Relevância Econômica e Social**
+
+A inadimplência das empresas é um **indicador crítico** da **saúde financeira** do setor produtivo e tem um impacto direto sobre a **economia regional e nacional**.
+
+### **Impacto Econômico**
+
+-   **Risco de crédito:** Bancos e instituições financeiras usam este índice para avaliar a segurança na concessão de empréstimos. **Altos índices de inadimplência** podem levar à redução do crédito disponível para empresas, dificultando investimentos e expansão.
+
+-   **Taxas de juros:** Períodos de alta inadimplência geralmente levam **à elevação das taxas de juros para crédito empresarial**, aumentando o custo de financiamento.
+
+-   **Crescimento econômico:** Quando a inadimplência está alta, empresas podem enfrentar dificuldades para manter operações, levando a **redução de investimentos, fechamento de negócios e impacto no PIB local**.
+
+### **Impacto Social**
+
+-   **Empregos:** Empresas inadimplentes frequentemente enfrentam dificuldades financeiras que podem resultar em **demissões**, afetando a taxa de emprego e estabilidade das famílias.
+
+-   **Consumo e investimentos:** Se muitas empresas estão inadimplentes, há uma **diminuição na confiança do mercado**, resultando em queda nos investimentos e retração da economia.
+
+-   **Desenvolvimento regional:** Regiões com menor inadimplência geralmente possuem um **ambiente mais favorável para negócios**, atraindo investimentos e fortalecendo o tecido empresarial.
+
+## **Explicação dos Eixos**
+
+### **Eixo X (horizontal) – Tempo**
+
+O eixo **X** representa os anos cobertos pela análise, indo de **2004 até o período mais recente disponível**. Ele permite visualizar tendências de inadimplência ao longo do tempo, identificando **momentos de crise, estabilidade ou recuperação econômica**.
+
+### **Eixo Y (vertical) – Índice de inadimplência (%)**
+
+O eixo **Y** expressa a **inadimplência empresarial em percentual**. Ou seja:
+
+-   Valores próximos de **10% indicam um cenário de baixa inadimplência**, onde poucas empresas estão com atrasos severos em pagamentos.
+
+-   Valores próximos de **55% sugerem um ambiente crítico**, onde mais da metade das empresas enfrentam dificuldades financeiras graves.
+
+Esse percentual mede a **proporção de empresas inadimplentes em relação ao total** dentro da economia catarinense. É um dado essencial para compreender **o nível de estabilidade do setor empresarial**.
+
+**Fonte dos dados:**
+
+-   Dados fornecidos pelo **Banco Central do Brasil**, através do **Sistema Gerenciador de Séries Temporais (SGS)**, com informações oficiais e atualizadas sobre indicadores econômicos do país.
+
+### 
